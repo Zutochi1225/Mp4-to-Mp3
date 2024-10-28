@@ -1,40 +1,44 @@
-import telebot
-import moviepy.editor as mp
 import os
+import telebot
+from moviepy.editor import VideoFileClip
 
-# Telegram Bot Token
-bot_token = os.getenv("BOT_TOKEN")  # Heroku မှာ BOT_TOKEN ကို Config Vars မှာ ထည့်ပါ
+# Get bot token from environment variables
+bot_token = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(bot_token)
 
-# MP4 to MP3 ပြောင်းတဲ့ function
+# Start command handler
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.send_message(message.chat.id, "Send video to convert to MP3.")
+
+# /bi command handler
+@bot.message_handler(commands=['bi'])
+def echo_message(message):
+    # User ထည့်သွင်းထားသော command message ကို ပြန်လည်ပြောပါ
+    user_message = message.text.split('/bi ', 1)[1] if len(message.text.split('/bi ')) > 1 else ''
+    if user_message:
+        bot.send_message(message.chat.id, f'You said: {user_message}')
+    else:
+        # Custom message for empty input
+        bot.send_message(message.chat.id, "This Bot is made by Myanmar. This Bot is free to use. No need join group/channel.")
+
+# Video to MP3 conversion handler
 @bot.message_handler(content_types=['video'])
 def convert_mp4_to_mp3(message):
-    try:
-        # Video ဖိုင် download
-        file_info = bot.get_file(message.video.file_id)
-        file = bot.download_file(file_info.file_path)
-        
-        # Video ဖိုင် သိမ်းထားရန်
-        video_path = 'video.mp4'
-        with open(video_path, 'wb') as f:
-            f.write(file)
+    file_info = bot.get_file(message.video.file_id)
+    file = bot.download_file(file_info.file_path)
 
-        # MP3 ဖိုင်သို့ ပြောင်းခြင်း
-        video = mp.VideoFileClip(video_path)
-        audio_path = 'audio.mp3'
-        video.audio.write_audiofile(audio_path)
-        
-        # MP3 ဖိုင်ကို ပြန်ပေးပို့ခြင်း
-        with open(audio_path, "rb") as audio:
-            bot.send_audio(message.chat.id, audio)
+    with open("video.mp4", "wb") as f:
+        f.write(file)
 
-        # ဖိုင်များကိုဖျက်ပစ်ခြင်း
-        os.remove(video_path)
-        os.remove(audio_path)
-        
-    except Exception as e:
-        bot.send_message(message.chat.id, "Conversion error occurred!")
-        print(e)
+    video = VideoFileClip("video.mp4")
+    video.audio.write_audiofile("audio.mp3")
 
-# Bot ကို run ထားရန်
+    with open("audio.mp3", "rb") as audio:
+        bot.send_audio(message.chat.id, audio)
+
+    os.remove("video.mp4")
+    os.remove("audio.mp3")
+
+# Start polling
 bot.polling()
